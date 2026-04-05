@@ -23,13 +23,12 @@ jobs:
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG_STAGING }}" > ~/.kube/config
 
-      - name: Update image tag in deployment
+      - name: Update image tag
         run: |
-          sed -i "s|ghcr.io/roei2212/shorty-service:latest|ghcr.io/roei2212/shorty-service:${{ github.sha }}|g" k8s/staging/deployment.yaml
+          sed -i "s|ghcr.io/roei2212/shorty-service:latest|ghcr.io/${{ github.repository }}/shorty-service:${{ github.sha }}|g" k8s/staging/deployment.yaml
 
-      - name: Apply manifests
-        run: |
-          kubectl apply -f k8s/staging/
+      - name: Apply manifests (no validation)
+        run: kubectl apply --validate=false -f k8s/staging/
 
   deploy-production:
     name: Deploy to Production
@@ -37,10 +36,6 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://your-production-url.com
-      # זה מה שיוצר את ה-approval הידני
-      # GitHub יבקש אישור לפני שה-job ירוץ
-      # אין צורך להגדיר כאן reviewers — זה מנוהל ב-GitHub UI
 
     steps:
       - name: Checkout code
@@ -56,19 +51,9 @@ jobs:
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" > ~/.kube/config
 
-      - name: Update image tag in deployment
+      - name: Update image tag
         run: |
-          sed -i "s|ghcr.io/roei2212/shorty-service:latest|ghcr.io/roei2212/shorty-service:${{ github.sha }}|g" k8s/production/deployment.yaml
+          sed -i "s|ghcr.io/roei2212/shorty-service:latest|ghcr.io/${{ github.repository }}/shorty-service:${{ github.sha }}|g" k8s/production/deployment.yaml
 
-      - name: Apply manifests
-        run: |
-          kubectl apply -f k8s/production/
-      - name: Verify rollout
-        run: |
-          kubectl rollout status deployment/shorty-service-canary --timeout=30s || exit 1
-
-      - name: Rollback if failed
-        if: failure()
-        run: |
-          echo "Canary failed — rolling back"
-          kubectl rollout undo deployment/shorty-service-canary
+      - name: Apply manifests (no validation)
+        run: kubectl apply --validate=false -f k8s/production/

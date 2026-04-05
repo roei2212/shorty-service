@@ -6,7 +6,7 @@ on:
 
 jobs:
   deploy-staging:
-    name: Deploy to Staging
+    name: Validate Staging Manifests
     runs-on: ubuntu-latest
 
     steps:
@@ -18,20 +18,11 @@ jobs:
         with:
           version: "latest"
 
-      - name: Configure Kubeconfig
-        run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBE_CONFIG_STAGING }}" > ~/.kube/config
-
-      - name: Update image tag
-        run: |
-          sed -i "s|ghcr.io/roei2212/shorty-service:latest|ghcr.io/${{ github.repository_owner }}/shorty-service:${{ github.sha }}|g" k8s/staging/deployment.yaml
-
-      - name: Validate manifests locally (no cluster communication)
+      - name: Validate manifests locally (no kubeconfig, no cluster)
         run: kubectl create --dry-run=client --validate=false -f k8s/staging/
 
   deploy-production:
-    name: Deploy to Production
+    name: Validate Production Manifests
     needs: deploy-staging
     runs-on: ubuntu-latest
     environment:
@@ -46,14 +37,5 @@ jobs:
         with:
           version: "latest"
 
-      - name: Configure Kubeconfig
-        run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" > ~/.kube/config
-
-      - name: Update image tag
-        run: |
-          sed -i "s|ghcr.io/roei2212/shorty-service:latest|ghcr.io/${{ github.repository_owner }}/shorty-service:${{ github.sha }}|g" k8s/production/deployment.yaml
-
-      - name: Validate manifests locally (no cluster communication)
+      - name: Validate manifests locally (no kubeconfig, no cluster)
         run: kubectl create --dry-run=client --validate=false -f k8s/production/

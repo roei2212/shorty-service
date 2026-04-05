@@ -1,0 +1,74 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "latest"
+
+      - name: Configure Kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG_STAGING }}" > ~/.kube/config
+
+      - name: Update image tag in deployment
+        run: |
+          sed -i "s|ghcr.io/roei2212/shorty-service:latest|ghcr.io/roei2212/shorty-service:${{ github.sha }}|g" k8s/staging/deployment.yaml
+
+      - name: Apply manifests
+        run: |
+          kubectl apply -f k8s/staging/
+
+  deploy-production:
+    name: Deploy to Production
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://your-production-url.com
+      # זה מה שיוצר את ה-approval הידני
+      # GitHub יבקש אישור לפני שה-job ירוץ
+      # אין צורך להגדיר כאן reviewers — זה מנוהל ב-GitHub UI
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "latest"
+
+      - name: Configure Kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" > ~/.kube/config
+
+      - name: Update image tag in deployment
+        run: |
+          sed -i "s|ghcr.io/roei2212/shorty-service:latest|ghcr.io/roei2212/shorty-service:${{ github.sha }}|g" k8s/production/deployment.yaml
+
+      - name: Apply manifests
+        run: |
+          kubectl apply -f k8s/production/
+      - name: Verify rollout
+        run: |
+          kubectl rollout status deployment/shorty-service-canary --timeout=30s || exit 1
+
+      - name: Rollback if failed
+        if: failure()
+        run: |
+          echo "Canary failed — rolling back"
+          kubectl rollout undo deployment/shorty-service-canary

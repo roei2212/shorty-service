@@ -1,0 +1,50 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+
+jobs:
+  build-test-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest flake8 bandit
+
+      - name: Run lint
+        run: flake8 app
+
+      - name: Run security scan
+        run: bandit -r app
+
+      - name: Run unit tests
+        run: pytest -q
+
+      - name: Build Docker image
+        run: docker build -t shorty-service:${{ github.sha }} .
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image
+        run: |
+          docker tag shorty-service:${{ github.sha }} ghcr.io/${{ github.repository }}/shorty-service:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository }}/shorty-service:${{ github.sha }}

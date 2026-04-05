@@ -25,10 +25,10 @@ jobs:
 
       - name: Update image tag
         run: |
-          sed -i "s|ghcr.io/roei2212/shorty-service:latest|ghcr.io/${{ github.repository }}/shorty-service:${{ github.sha }}|g" k8s/staging/deployment.yaml
+          sed -i "s|ghcr.io/roei2212/shorty-service:latest|ghcr.io/${{ github.repository_owner }}/shorty-service:${{ github.sha }}|g" k8s/staging/deployment.yaml
 
-      - name: Apply manifests (no validation)
-        run: kubectl apply --validate=false -f k8s/staging/
+      - name: Apply manifests (server-side, no validation)
+        run: kubectl apply --server-side --validate=false -f k8s/staging/
 
   deploy-production:
     name: Deploy to Production
@@ -53,7 +53,7 @@ jobs:
 
       - name: Update image tag
         run: |
-          sed -i "s|ghcr.io/roei2212/shorty-service:latest|ghcr.io/${{ github.repository }}/shorty-service:${{ github.sha }}|g" k8s/production/deployment.yaml
+          sed -i "s|ghcr.io/roei2212/shorty-service:latest|ghcr.io/${{ github.repository_owner }}/shorty-service:${{ github.sha }}|g" k8s/production/deployment.yaml
 
-      - name: Apply manifests (no validation)
-        run: kubectl apply --validate=false -f k8s/production/
+      - name: Apply manifests (server-side, no validation)
+        run: kubectl apply --server-side --validate=false -f k8s/production/

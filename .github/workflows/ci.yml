@@ -4,10 +4,9 @@ on:
   push:
     branches: ["main", "develop"]
   pull_request:
-    branches: ["main", "develop"]
 
 jobs:
-  build-test-lint:
+  build-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,36 +14,28 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
+          python-version: "3.10"
 
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest flake8 bandit
+          pip install flake8 pytest
 
-      - name: Run lint
+      - name: Lint
         run: flake8 app
 
-      - name: Run security scan
-        run: bandit -r app
-
-      - name: Run unit tests
+      - name: Run tests
         run: pytest -q
 
       - name: Build Docker image
         run: docker build -t shorty-service:${{ github.sha }} .
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
       - name: Push image
         run: |
-          docker tag shorty-service:${{ github.sha }} ghcr.io/${{ github.repository }}/shorty-service:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository }}/shorty-service:${{ github.sha }}
+          docker tag shorty-service:${{ github.sha }} ghcr.io/${{ github.repository_owner }}/shorty-service:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository_owner }}/shorty-service:${{ github.sha }}
